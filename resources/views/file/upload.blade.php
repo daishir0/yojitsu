@@ -19,7 +19,7 @@
                 <div class="title m-b-md">
                     Laravel
                 </div>
-                @include('include.message');
+                @include('include.message')
                 <div class="drop-zone" id="js-dropzone">
                     <form action="{{route('file.store')}}" method="post" enctype="multipart/form-data">
                         @csrf

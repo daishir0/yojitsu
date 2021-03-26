@@ -177,7 +177,7 @@ class FileController extends Controller
     }
 
     //------------------
-    //下請け関数 登録処理
+    //解析処理から呼ばれる関数 登録処理
     // 戻り値：成功したらtrue
     private static function access_jisseki($kind, $str = null, $item = null)
     {
