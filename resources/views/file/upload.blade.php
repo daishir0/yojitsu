@@ -47,6 +47,9 @@
                     @endforeach
                     </ul>
                 </div>
+                <div class="download">
+                    <a class="btn-download" href="{{route('file.download')}}">実績ファイルダウンロード</a>
+                </div>
             </div>
         </div>
         <script src="{{asset('js/app.js')}}"></script>

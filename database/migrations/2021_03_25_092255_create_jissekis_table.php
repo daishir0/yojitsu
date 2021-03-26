@@ -19,7 +19,7 @@ class CreateJissekisTable extends Migration
             $table->string('function');
             $table->string('output');
             $table->date('date');
-            $table->integer('hour');
+            $table->float('hour', 5, 2); //99.25Hを想定
             $table->string('user');
             $table->text('comments');
             $table->timestamps();
