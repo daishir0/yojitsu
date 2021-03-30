@@ -27,31 +27,6 @@ $(function () {
       return false;
     }
     $('#file_upload')[0].files = files;
-    $('.bar-gray').show();
-    $('.bar-gray p').text(name);
-    $('#to-Loading').removeClass('is-disabled');
-  });
-
-  // ファイル選択ボタン
-  $('#file_upload').on('change', function() {
-    var files = $('#file_upload')[0].files;
-    var name = files[0].name;
-    if (!name.match(/\.(xls[xm]?)$/i)) {
-      alert('エクセルファイルをアップロードしてください。');
-      return false;
-    }
-    $('.bar-gray').show();
-    $('.bar-gray p').text(name);
-    $('#to-Loading').removeClass('is-disabled');
-    return false;
-  });
-
-  //ファイルキャンセル
-  $('.drop-zone-foot .btn-cancel').on('click', function () {
-    $('.bar-gray').hide();
-    $('.bar-gray p').text('');
-    $('#to-Loading').addClass('is-disabled');
-    $('#file_upload').val(''); //選択解除
-    return false
+    $('#form1').submit();
   });
 });

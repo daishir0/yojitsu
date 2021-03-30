@@ -46,6 +46,13 @@ class FileController extends Controller
         return back()->with('msg_error', '追加できませんでした');
     }
 
+    //入力データチェック結果
+    const CHK_FULL = 1;     //すべて埋まっていてOK
+    const CHK_EMP = 2;      //すべて空白でOK
+    const CHK_DATE_NG = 3;  //日付変換NG
+    const CHK_HAS_EMP = 4;  //空白が混在NG
+    const CHK_CNT_NG = 5; //要素数 NG
+
     //upload/{id}
     //アップロード済みのエクセルファイルを files より読み出し、
     //実績を解析、jissekisテーブルに格納する
@@ -61,7 +68,6 @@ class FileController extends Controller
             //反映済み
             return redirect(route('file.upload'))->with('msg_error', $fid . ' 「' . $filename . '」このレコードは取込済みです。');
         }
-
 
         //実績へ反映処理
         
@@ -97,66 +103,73 @@ class FileController extends Controller
         $c_ng = 0; //反映NGの行数
         foreach ($sheet->getRowIterator() as $row) {
             $r_idx = $row->getRowIndex();
-            $strraw = $sheet->rangeToArray("A".$r_idx.":H".$r_idx);
-            $str = $strraw[0]; //row側要素1　の　2次元配列　を1次元配列に変換
+            $raw = $sheet->rangeToArray("A".$r_idx.":H".$r_idx);
+            $new_data = $raw[0]; //row側要素1　の　2次元配列　を1次元配列に変換
 
-            //チェック
-            if (count($str)==8) { //8列を想定 つまりコメントがないとNG
-                if ($f_title) {
-                    //最初の行はタイトル行なので処理しない
-                    $f_title = false;
-                    continue;
-                }
+            if ($f_title) {
+                //最初の行はタイトル行なので処理しない
+                $f_title = false;
+                continue;
+            }
 
-                if ($str[0] === null) {
-                    //先頭が空要素は新規追加
-                    $id = -1;
-                    $item = null;
+            //エラー表示
+            $str_tmp .= $r_idx . "行は";
+
+            //入力チェック
+            $chk_rslt = self::check_input($new_data);
+
+            //入力数が合わない
+            if ($chk_rslt == self::CHK_CNT_NG) {
+                $c_ng++;
+                $str_tmp .= "データ数の不一致, \n";
+                continue;
+            } else if ($chk_rslt == self::CHK_HAS_EMP) {
+                $c_ng++;
+                $str_tmp .= "空白要素あり, \n";
+                continue;
+            } else if ($chk_rslt == self::CHK_DATE_NG) {
+                $c_ng++;
+                $str_tmp .= "日付変換NG, \n";
+                continue;
+            }
+
+            //この先 CHK_FULL か CHK_EMP
+
+            if ($new_data[0] === null) {
+                //先頭が空要素は新規追加
+                $id = -1;
+                $item = null;
+            } else {
+                $id = intval($new_data[0]);
+                $item = Jisseki::find($id);
+                $str_tmp .= "id" . $id . " ";
+            }
+
+            if ($chk_rslt == self::CHK_FULL) { //フル
+                if ($id == -1) {
+                    //id が空欄で新規追加
+                    $str_tmp .= "新規追加, \n";
+                    if (self::access_jisseki('add', $new_data)) { $c_ok++; } else { $c_ng++; }
+                } else if (is_null($item)) {
+                    //レコードが存在しないidで新規追加
+                    $str_tmp .= "id指定で新規追加, \n";
+                    if (self::access_jisseki('add', $new_data, null, $id)) { $c_ok++; } else { $c_ng++; }
                 } else {
-                    $id = intval($str[0]);
-                    $item = Jisseki::find($id);
-                }
-                $str_tmp .= $r_idx . "行 " . $id . "は";
-
-                //処理判断
-                if ($id > 0 && is_null($item)) {
-                    //存在しないため無視
-                    $str_tmp .= "存在しません。無視します。\n";
-                    $c_ng++;
-                } else {
-                    //行ごとに 追加・削除・更新 の判断
-                    $c_null = 0;
-                    for ($i=1; $i<8;$i++) {
-                        if ($str[$i] === null) {
-                            $c_null++;
-                        }
-                    }
-                    // 1 ～ 7 が全部なければ削除
-                    //　　　　　全部あれば 追加、あるいは、更新
-                    //　　　　　中途半端なら何もしない
-                    if ($c_null == 0) {
-                        if ($id == -1) {
-                            //新規追加
-                            $str_tmp .= "新規追加です\n";
-                            if (self::access_jisseki('add', $str)) { $c_ok++; } else { $c_ng++; }
-                        } else {
-                            //更新
-                            $str_tmp .= "更新です\n";
-                            if (self::access_jisseki('modify', $str, $item)) { $c_ok++; } else { $c_ng++; }
-                        }
-                    } else if ($c_null == 7) {
-                        if ($id == -1) {
-                            $str_tmp .= "空行です\n";
-                        } else {
-                            //削除
-                            $str_tmp .= "削除です\n";
-                            if (self::access_jisseki('del', null, $item)) { $c_ok++; } else { $c_ng++; }
-                        }
+                    //id itemともにあり。更新
+                    if (!self::check_modified($new_data, $item)) {
+                        $str_tmp .= "更新なし, \n";
                     } else {
-                        //何もしない
-                        $str_tmp .= $c_null . "個空白のため無視します\n";
-                        $c_ng++;
+                        $str_tmp .= "更新, \n";
+                        if (self::access_jisseki('modify', $new_data, $item)) { $c_ok++; } else { $c_ng++; }
                     }
+                }
+            } else if ($chk_rslt == self::CHK_EMP) { //空白
+                if ($id == -1) {
+                    $str_tmp .= "空行, \n";
+                } else {
+                    //削除
+                    $str_tmp .= "削除, \n";
+                    if (self::access_jisseki('del', null, $item)) { $c_ok++; } else { $c_ng++; }
                 }
             }
         }
@@ -169,33 +182,96 @@ class FileController extends Controller
         //更新フラグ
         if ($c_ng == 0) {
             $fileitem->update(['del_flg' => 1]);
-            return redirect(route('file.upload'))->with('msg_success', $fid . ' 「' . $filename . '」実績工数、取り込み完了');
+            return redirect(route('file.upload'))->with('msg_success', $fid . ' 「' . $filename . '」実績工数、取り込み完了 ');
         } else {
-            return redirect(route('file.upload'))->with('msg_error', $fid . ' 「' . $filename . '」エラー発生あり(' . $c_ng . '個)' . $str_tmp);
+            return redirect(route('file.upload'))->with('msg_error', $fid . ' 「' . $filename . '」エラー発生あり(' . $c_ng . '個) ' . $str_tmp);
         }
 
     }
 
     //------------------
+    //解析処理から呼ばれる関数 入力データチェック
+    // 戻り値：self::CHK_xxx で始まる定数
+    private static function check_input($new_data)
+    {
+        if (count($new_data) != 8) {
+            //8列を想定
+            return self::CHK_CNT_NG;
+        }
+
+        $c_null = 0;
+        // $new_data[0]はid チェックしない
+        for ($i=1; $i<8;$i++) {
+            if ($new_data[$i] === null) {
+                $c_null++;
+            }
+        }
+        if ($c_null == 0) {
+            $date = Jisseki::todate($new_data[4]);
+            if ($date == false) {
+                //日付の変換出来ず
+                return self::CHK_DATE_NG;
+            }
+            //すべてありで問題なし
+            return self::CHK_FULL;
+        } else if ($c_null == 7) {
+            //すべてなしで問題なし
+            return self::CHK_EMP;
+        } else {
+            //中途半端で問題あり
+            return self::CHK_HAS_EMP;
+        }
+    }
+
+    //------------------
+    //解析処理から呼ばれる関数 変更点チェック処理
+    // 戻り値：違いがあったらtrue
+    private static function check_modified($new_data, $item)
+    {
+        $c_diff = 0;
+        if ($item->project != $new_data[1]) { $c_diff++; }
+        if ($item->function != $new_data[2]) { $c_diff++; }
+        if ($item->output != $new_data[3]) { $c_diff++; }
+        if ($item->date != Jisseki::todate($new_data[4])) { $c_diff++; }
+        if ($item->hour != floatval($new_data[5])) { $c_diff++; }
+        if ($item->user != $new_data[6]) { $c_diff++; }
+        if ($item->comments != $new_data[7]) { $c_diff++; }
+        // if ($c_diff>0) dd($c_diff, $item, $new_data);
+        return ($c_diff != 0);
+    }
+
+    //------------------
+    //入力データをチェックしてデータベースへ渡すデータ列を作成
+    //戻り値：データベースへ渡すデータ配列
+    private static function make_attr($new_data = null)
+    {
+        $attr = [];
+        $attr['project'] = $new_data[1];
+        $attr['function'] = $new_data[2];
+        $attr['output'] = $new_data[3];
+        $attr['date'] = Jisseki::todate($new_data[4]);
+        $attr['hour'] = floatval($new_data[5]);
+        $attr['user'] = $new_data[6];
+        $attr['comments'] = $new_data[7];
+        return $attr;
+    }
+
+    //------------------
     //解析処理から呼ばれる関数 登録処理
     // 戻り値：成功したらtrue
-    private static function access_jisseki($kind, $str = null, $item = null)
+    private static function access_jisseki($kind, $new_data = null, $item = null, $id = -1)
     {
         if ($kind == 'add' || $kind == 'modify') {
-            if ($str == null) {
+            if ($new_data == null) {
                 return false;
             }
-            $attr = [];
-            $attr['project'] = $str[1];
-            $attr['function'] = $str[2];
-            $attr['output'] = $str[3];
-            $attr['date'] = $str[4]; // バリデート必要
-            $attr['hour'] = floatval($str[5]);
-            $attr['user'] = $str[6];
-            $attr['comments'] = $str[7];
+            $attr = self::make_attr($new_data);
+            if ($id > 0) {
+                $attr['id'] = $id; // id付き新規作成
+            }
             if ($kind == 'add') {
                 $ret = Jisseki::create($attr); //$retは作成されたobj
-                if ($ret !== null) { return true;} else { return false; }
+                if ($ret !== null) { return true; } else { return false; }
             } else {
                 //変更
                 if ($item == null) {
@@ -235,7 +311,7 @@ class FileController extends Controller
             $row[] = $item->project;
             $row[] = $item->function;
             $row[] = $item->output;
-            $row[] = $item->date;
+            $row[] = Jisseki::format($item->date);
             $row[] = $item->hour;
             $row[] = $item->user;
             $row[] = $item->comments;

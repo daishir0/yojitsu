@@ -21,21 +21,16 @@
                 </div>
                 @include('include.message')
                 <div class="drop-zone" id="js-dropzone">
-                    <form action="{{route('file.store')}}" method="post" enctype="multipart/form-data">
+                    <form id="form1" action="{{route('file.store')}}" method="post" enctype="multipart/form-data">
                         @csrf
-                        <label for="file_upload" class="select-file" id="js-select-file">
+                        <label class="select-file" id="js-select-file">
                             <p>
                                 <span>エクセルファイルをドラッグ & ドロップする</span><br>
-                                <span>または、</span><br><a href="#" class="btn-send_sub">ファイルを選択する</a>
                             </p>
-                            <input type="file" name="file_upload" id="file_upload" accept=".xls,.xlsx,xlsm">
                         </label>
+                        <input type="file" name="file_upload" id="file_upload" accept=".xls,.xlsx,xlsm" style="display:none;">
                         <div class="drop-zone-foot">
-                            <div class="bar-gray" style="display:none;">
-                                <p></p>
-                                <a class="btn-cancel" href="#"><span>キャンセル</span></a>
-                            </div>
-                            <button id="to-Loading" class="btn-send is-disabled">送信する</button>
+                            <button id="to-Loading" class="btn-send is-disabled" style="display:none;">送信する</button>
                         </div>
                     </form>
                 </div>
@@ -43,7 +38,7 @@
                     <p>直近5件</p>
                     <ul>
                     @foreach ($files as $item)
-                        <li>{{"[".$item->id."]".$item->filename."[".$item->updated_at.(($item->del_flg==0)?"送信(未処理)":"処理済み")."]"}}</li>
+                        <li>{{"[".$item->id."]".$item->filename."[".$item->updated_at.(($item->del_flg==0)?"送信(未完了)":"処理済み")."]"}}</li>
                     @endforeach
                     </ul>
                 </div>
@@ -53,6 +48,6 @@
             </div>
         </div>
         <script src="{{asset('js/app.js')}}"></script>
-        <script src="{{asset('js/upload.js')}}"></script>
+        <script src="{{asset('js/upload.js')}}??20210330"></script>
     </body>
 </html>
