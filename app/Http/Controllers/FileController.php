@@ -149,7 +149,12 @@ class FileController extends Controller
                 if ($id == -1) {
                     //id が空欄で新規追加
                     $str_tmp .= "新規追加, \n";
-                    if (self::access_jisseki('add', $new_data)) { $c_ok++; } else { $c_ng++; }
+                    //id空白でもidを指定する。
+                    //$idを指定しないとauto inc機能が働くが、id指定で新規追加した分は考慮されなくて
+                    //idが衝突してしまうため
+                    $max_id = Jisseki::max('id');
+                    $id = $max_id + 1;
+                    if (self::access_jisseki('add', $new_data, null, $id)) { $c_ok++; } else { $c_ng++; }
                 } else if (is_null($item)) {
                     //レコードが存在しないidで新規追加
                     $str_tmp .= "id指定で新規追加, \n";
