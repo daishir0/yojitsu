@@ -7,7 +7,6 @@ yojitsuは、工数の予算と実績を簡単に管理するためのシステ�
 ## Contributing
 
 このソフトウェアは、 [@junko5](https://github.com/junko5) さんのご協力のもと作成されました。この場を借りて御礼申し上げます。
-https://github.com/junko5
 
 ## License
 
